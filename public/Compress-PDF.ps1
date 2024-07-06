@@ -5,7 +5,13 @@ function Compress-PDF {
         [string]$FilePath,
 
         [Parameter(Mandatory=$false)]
-        [switch]$Remove
+        [switch]$Remove,
+
+        [Parameter(Mandatory=$false)]
+        [string]$Version = '2.0',
+
+        [Parameter(Mandatory=$false)]   
+        [string]$Quality = 'ebook'
     )
 
     # Check if the file exists
@@ -24,7 +30,7 @@ function Compress-PDF {
     $compressedFilePath = $FilePath
 
     # Step 1: Rename file.pdf to file_original.pdf
-    if ($PSCmdlet.ShouldProcess($FilePath, "Compress using Ghostscript with -dPDFSETTINGS=/ebook")) {
+    if ($PSCmdlet.ShouldProcess($FilePath, "Compress using Ghostscript with -dCompatibilityLevel=$Version and -dPDFSETTINGS=/$Quality")) {
         try {
             Rename-Item -Path $FilePath -NewName $originalFilePath
             Write-Verbose "Renamed '$FilePath' to '$originalFilePath'"
@@ -37,15 +43,24 @@ function Compress-PDF {
 
             $originalFileSize = (Get-Item $originalFilePath).Length
 
-            # Step 3: Compress the PDF using Ghostscript
-            $ghostscriptVerbosityOption = if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) { "" } else { "-q" }
-            
-            $ghostscriptCommand = "gswin64c $ghostscriptVerbosityOption '-sDEVICE=pdfwrite' '-dCompatibilityLevel=2.0' '-dPDFSETTINGS=/ebook' -dNOPAUSE -dBATCH '-sOutputFile=$compressedFilePath' '$originalFilePath'"
+            # Step 3: Compress the PDF using Ghostscript            
+            $ghostscriptArgs = @(
+                if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) { "" } else { "-q" } # Verbosity
+                "'-sDEVICE=pdfwrite'",
+                "'-dCompatibilityLevel=$Version'",
+                "'-dPDFSETTINGS=/$Quality'",
+                "-dNOPAUSE",
+                "-dBATCH",
+                "'-sOutputFile=$compressedFilePath'",
+                "'$originalFilePath'"
+            )
+
+            $ghostscriptCommand = "gswin64c " + ($ghostscriptArgs -join ' ')
             Write-Verbose "Executing `"$ghostscriptCommand`""
             
             Invoke-Expression $ghostscriptCommand
-            Write-Verbose "Compressed '$originalFilePath' to '$compressedFilePath'"
-            
+         
+            Write-Verbose "Compressed '$originalFilePath' to '$compressedFilePath'."
 
             # Step 4: Check the size difference
             $compressedFileSize = (Get-Item $compressedFilePath).Length
