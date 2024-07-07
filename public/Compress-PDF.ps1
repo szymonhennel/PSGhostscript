@@ -50,9 +50,9 @@ function Compress-PDF {
 
             $originalFileSize = (Get-Item $originalFilePath).Length
 
-            # Step 3: Compress the PDF using Ghostscript            
+            # Step 3: Compress the PDF using Ghostscript
             $ghostscriptArgs = @(
-                if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) { "" } else { "-q" } # Verbosity
+                if ($PSBoundParameters.ContainsKey('Verbose')) { "" } else { "-q" } # Verbosity
                 "'-sDEVICE=pdfwrite'",
                 "'-dCompatibilityLevel=$Version'",
                 "'-dPDFSETTINGS=/$Quality'",
@@ -64,11 +64,9 @@ function Compress-PDF {
 
             $ghostscriptCommand = "gswin64c " + ($ghostscriptArgs -join ' ')
             Write-Verbose "Executing `"$ghostscriptCommand`""
-            
             Invoke-Expression $ghostscriptCommand
 
             # Step 4: Check if Ghostscript was successful
-
             $success = $LASTEXITCODE -eq 0 -and (Test-Path $compressedFilePath)
 
             if ($success) {

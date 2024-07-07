@@ -4,6 +4,9 @@ function Compress-PDFBatch {
         [Parameter(Mandatory=$true)]
         [string]$TargetFolder,
 
+        [Parameter(Mandatory=$false)]
+        [switch]$Recurse,
+
         [Parameter(Mandatory=$false)]   
         [switch]$Touch,
 
@@ -24,7 +27,7 @@ function Compress-PDFBatch {
     }
 
     # Get all PDF files in the target folder
-    $pdfFiles = Get-ChildItem -Path $TargetFolder -Filter *.pdf -File
+    $pdfFiles = Get-ChildItem -Path $TargetFolder -Filter *.pdf -File -Recurse:$Recurse
 
     # Initialize counters
     $totalFiles = $pdfFiles.Count
@@ -33,9 +36,9 @@ function Compress-PDFBatch {
     $totalSizeDelta = 0
 
     foreach ($file in $pdfFiles) {
-        if ($PSCmdlet.ShouldProcess($file.FullName, "Compressing PDF")) {
+        if ($PSCmdlet.ShouldProcess($file.FullName, "Compress using Ghostscript with -dCompatibilityLevel=$Version and -dPDFSETTINGS=/$Quality")) {
             # Assuming Compress-PDF returns an object with properties: GhostscriptSuccess, SizeDelta
-            $result = Compress-PDF -FilePath $file.FullName -Remove -Touch:($Touch -or $UpdateTimestamps) -Version $Version -Quality $Quality 
+            $result = Compress-PDF -FilePath $file.FullName -Remove -Touch:($Touch -or $UpdateTimestamps) -Version $Version -Quality $Quality -Verbose:$PSBoundParameters.ContainsKey('Verbose')
 
             if ($result.GhostscriptSuccess) {
                 $successCount++
@@ -48,16 +51,18 @@ function Compress-PDFBatch {
         }
     }
 
-    $totalSizeDeltaMB = [Math]::Round($totalSizeDelta / 1MB, 2)
+    if ($PSCmdlet.ShouldProcess($TargetFolder, "Report the outcome of all PDF files contained in folder $(if($Recurse) { 'recursively' } else { '(non-recursively)' })")) {
+        $totalSizeDeltaMB = [Math]::Round($totalSizeDelta / 1MB, 2)
 
-    # Generate and print the report
-    $resultObject = [PSCustomObject]@{
-        "Files processed" = $totalFiles
-        "Successful" = $successCount
-        "Reduced size" = $sizeReducedCount
-        "Size delta (MB)" = $totalSizeDeltaMB
+        # Generate and print the report
+        $resultObject = [PSCustomObject]@{
+            "Files processed" = $totalFiles
+            "Successful" = $successCount
+            "Reduced size" = $sizeReducedCount
+            "Size delta (MB)" = $totalSizeDeltaMB
+        }
+        
+        # Print the object as a table
+        $resultObject | Format-Table -AutoSize
     }
-    
-    # Print the object as a table
-    $resultObject | Format-Table -AutoSize
 }
