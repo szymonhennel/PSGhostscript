@@ -7,6 +7,12 @@ function Compress-PDF {
         [Parameter(Mandatory=$false)]
         [switch]$Remove,
 
+        [Parameter(Mandatory=$false)]   
+        [switch]$Touch,
+
+        [Parameter(Mandatory=$false)]   
+        [switch]$UpdateTimestamps,
+
         [Parameter(Mandatory=$false)]
         [string]$Version = '2.0',
 
@@ -80,6 +86,9 @@ function Compress-PDF {
                     Write-Verbose "Replaced compressed file with original due to larger size ($compressedFileSize vs $originalFileSize)"
                     $size_delta = 0
                 } else {
+                    if (-not $UpdateTimestamps -and -not $Touch) {
+                        Set-FileDates $compressedFilePath $originalFilePath
+                    }
                     # Step 6: Remove the original file if -Remove is specified
                     if ($Remove) {
                         Remove-ItemSafely -Path $originalFilePath
@@ -99,7 +108,6 @@ function Compress-PDF {
         }
 
         # Step 7: Return the result
-        $success = $compressedFileSize -lt $originalFileSize -or $compressedFileSize -eq $originalFileSize
         return [PSCustomObject]@{
             GhostscriptSuccess = $success
             SizeDelta = $size_delta

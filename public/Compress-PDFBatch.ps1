@@ -4,6 +4,12 @@ function Compress-PDFBatch {
         [Parameter(Mandatory=$true)]
         [string]$TargetFolder,
 
+        [Parameter(Mandatory=$false)]   
+        [switch]$Touch,
+
+        [Parameter(Mandatory=$false)]   
+        [switch]$UpdateTimestamps,
+
         [Parameter(Mandatory=$false)]
         [string]$Version = '2.0',
 
@@ -29,7 +35,7 @@ function Compress-PDFBatch {
     foreach ($file in $pdfFiles) {
         if ($PSCmdlet.ShouldProcess($file.FullName, "Compressing PDF")) {
             # Assuming Compress-PDF returns an object with properties: GhostscriptSuccess, SizeDelta
-            $result = Compress-PDF -FilePath $file.FullName -Remove -Version $Version -Quality $Quality
+            $result = Compress-PDF -FilePath $file.FullName -Remove -Touch:($Touch -or $UpdateTimestamps) -Version $Version -Quality $Quality 
 
             if ($result.GhostscriptSuccess) {
                 $successCount++
