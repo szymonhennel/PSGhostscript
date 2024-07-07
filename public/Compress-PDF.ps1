@@ -32,6 +32,7 @@ function Compress-PDF {
     # Step 1: Rename file.pdf to file_original.pdf
     if ($PSCmdlet.ShouldProcess($FilePath, "Compress using Ghostscript with -dCompatibilityLevel=$Version and -dPDFSETTINGS=/$Quality")) {
         try {
+            $success = $true
             Rename-Item -Path $FilePath -NewName $originalFilePath
             Write-Verbose "Renamed '$FilePath' to '$originalFilePath'"
 
@@ -59,33 +60,44 @@ function Compress-PDF {
             Write-Verbose "Executing `"$ghostscriptCommand`""
             
             Invoke-Expression $ghostscriptCommand
-         
-            Write-Verbose "Compressed '$originalFilePath' to '$compressedFilePath'."
 
-            # Step 4: Check the size difference
-            $compressedFileSize = (Get-Item $compressedFilePath).Length
+            # Step 4: Check if Ghostscript was successful
 
-            $size_delta = $originalFileSize - $compressedFileSize
+            $success = $LASTEXITCODE -eq 0 -and (Test-Path $compressedFilePath)
 
-            # Step 5: If the compressed file is larger, replace it with the original
-            if ($compressedFileSize -ge $originalFileSize) {
-                Remove-Item -Path $compressedFilePath
-                Rename-Item -Path $originalFilePath -NewName $compressedFilePath
-                Write-Verbose "Replaced compressed file with original due to larger size ($compressedFileSize vs $originalFileSize)"
-                $size_delta = 0
-            } else {
-                # Step 6: Remove the original file if -Remove is specified
-                if ($Remove) {
-                    Remove-ItemSafely -Path $originalFilePath
-                    Write-Verbose "Moved original file '$originalFilePath' to recycle bin."
+            if ($success) {
+                Write-Verbose "Compressed '$originalFilePath' to '$compressedFilePath'."
+
+                # Step 4: Check the size difference
+                $compressedFileSize = (Get-Item $compressedFilePath).Length
+
+                $size_delta = $originalFileSize - $compressedFileSize
+
+                # Step 5: If the compressed file is larger, replace it with the original
+                if ($compressedFileSize -ge $originalFileSize) {
+                    Remove-Item -Path $compressedFilePath
+                    Rename-Item -Path $originalFilePath -NewName $compressedFilePath
+                    Write-Verbose "Replaced compressed file with original due to larger size ($compressedFileSize vs $originalFileSize)"
+                    $size_delta = 0
+                } else {
+                    # Step 6: Remove the original file if -Remove is specified
+                    if ($Remove) {
+                        Remove-ItemSafely -Path $originalFilePath
+                        Write-Verbose "Moved original file '$originalFilePath' to recycle bin."
+                    }
                 }
+            } else {
+                Write-Error "Ghostscript failed to compress the PDF."
+                Rename-Item -Path $originalFilePath -NewName $compressedFilePath
+                Write-Verbose "Replaced compressed file with original due to failure to create compressed file."
+                $size_delta = 0
             }
-            $success = $true
         } catch {
             Write-Error $_.Exception.Message
             $success = $false
             $size_delta = 0
         }
+
         # Step 7: Return the result
         $success = $compressedFileSize -lt $originalFileSize -or $compressedFileSize -eq $originalFileSize
         return [PSCustomObject]@{
