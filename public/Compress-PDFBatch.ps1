@@ -38,6 +38,7 @@ function Compress-PDFBatch {
     foreach ($file in $pdfFiles) {
         if ($PSCmdlet.ShouldProcess($file.FullName, "Compress using Ghostscript with -dCompatibilityLevel=$Version and -dPDFSETTINGS=/$Quality")) {
             # Assuming Compress-PDF returns an object with properties: GhostscriptSuccess, SizeDelta
+            Write-Host "Processing file $($pdfFiles.IndexOf($file) + 1) out of $totalFiles`: $($file.FullName)"
             $result = Compress-PDF -FilePath $file.FullName -Remove -Touch:($Touch -or $UpdateTimestamps) -Version $Version -Quality $Quality -Verbose:$PSBoundParameters.ContainsKey('Verbose')
 
             if ($result.GhostscriptSuccess) {
